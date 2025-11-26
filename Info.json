@@ -1,0 +1,21 @@
+{
+  "name": "Recorder",
+  "identifier": "com.recorder.iina-plugin",
+  "version": "0.0.0",
+  "description": "Clip your favorite moments from your videos.",
+  "author": {
+    "name": "Daniel Ifechukwude Chinye",
+    "email": "chinyedaniel@gmail.com"
+  },
+  "entry": "dist/index.js",
+  "permissions": [
+    "show-osd",
+    "show-alert",
+    "video-overlay",
+    "network-request",
+    "file-system"
+  ],
+  "allowedDomains": ["*"],
+  "preferencesPage": "pref.html",
+  "preferenceDefaults": {}
+}
