@@ -13,40 +13,51 @@ import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 
 
-async function getEndTime() {
-  return new Promise((resolve, reject) => {
+export default App = () => {
+  const [currentPos, setCurrentPos] = useState("");
+  const [endPos, setEndPos] = useState("");
+
+  function formatTime(positionInSec) {
+    const hours = Math.floor(positionInSec / 3600);
+    const minutes = Math.floor(positionInSec / 60);
+    const seconds = Math.floor(positionInSec % 60);
+    return [hours, minutes, seconds]
+    .map(v => String(v).padStart(2, '0'))
+    .join(':');
+  }
+
+  async function getEndTime() {
+  return new Promise((resolve, _reject) => {
     iina.postMessage("getEndTime");
     iina.onMessage("endTime", ({ time }) => resolve(time));
   });
 }
 
-export default App = () => {
-  const [currentMin, setCurrentMin] = useState(0);
-  const [currentSec, setCurrentSec] = useState(0);
-
-  const [endMin, setEndMin] = useState(0);
-  const [endSec, setEndSec] = useState(0);
-
-  function formatTime(positionInSec) {
-    const minutes = Math.floor(positionInSec / 60);
-    const seconds = Math.floor(positionInSec % 60);
-    return { minutes, seconds };
-  }
+  async function processVideoClip() {
+  iina.postMessage("processVideoClip", {
+    startPos: currentPos,
+    endPos: endPos,
+  });
+}
 
   function handleSetEndTime() {
     getEndTime().then((time) => {
-      const formattedTime = formatTime(time);
-      setEndMin(formattedTime.minutes);
-      setEndSec(formattedTime.seconds);
+      const formattedEndTime = formatTime(time);
+      setEndPos(formattedEndTime);
     });
+  }
+
+  function handleCloseBtn() {
+    iina.postMessage("closeWindow");
+    setEndPos("");
   }
 
   useEffect(() => {
     const handleTimeUpdate = ({ time }) => {
       const formattedTime = formatTime(time);
-      setCurrentMin(formattedTime.minutes);
-      setCurrentSec(formattedTime.seconds);
+      setCurrentPos(formattedTime);
     };
+
     iina.onMessage("currentTime", handleTimeUpdate);
   }, []);
 
@@ -57,7 +68,7 @@ export default App = () => {
         type="text"
         variant="outlined"
         startDecorator={<AddCircleIcon/>}
-        value={`${currentMin}:${currentSec}`}
+        value={currentPos}
         readOnly
       />
     </FormControl>
@@ -74,7 +85,7 @@ export default App = () => {
         type="text"
         variant="outlined"
         startDecorator={<RemoveCircleIcon />}
-        value={`${endMin}:${endSec}`}
+        value={endPos}
         endDecorator={
           <Button
             variant="solid"
@@ -88,11 +99,41 @@ export default App = () => {
     </FormControl>
   );
 
+  const actionButtonsComponent = (
+    <Stack
+      direction="row"
+      spacing={2}
+      sx={{
+        marginTop: 5,
+        alignContent: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Button
+        variant="solid"
+        onClick={processVideoClip}
+        disabled={endPos === ""}
+      >
+        Process Clip
+      </Button>
+      <Button
+        variant="solid"
+        onClick={() => handleCloseBtn()}
+        sx={{
+          backgroundColor: "red"
+        }}
+      >
+        Cancel
+      </Button>
+    </Stack>
+  );
+
   return (
     <CssVarsProvider defaultMode="system">
       <CssBaseline />
       {startRecordingInputComponent}
       {endRecordingInputComponent}
+      {actionButtonsComponent}
     </CssVarsProvider>
   );
 };
