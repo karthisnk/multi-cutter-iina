@@ -29,8 +29,8 @@ export function postEndTimeMessage(window) {
 }
 
 export function processVideoClip(window) {
-  window.onMessage("processVideoClip", ({ startPos, endPos }) => {
-    ffmpegExecFn(startPos, endPos, window);
+  window.onMessage("processVideoClip", ({ startPos, endPos, hwaccel, verticalCrop }) => {
+    ffmpegExecFn(startPos, endPos, hwaccel, verticalCrop, window);
   });
 }
 
@@ -62,7 +62,7 @@ function postFfmpegStatus(window, status = false) {
 }
 
 // LOCAL PLUGIN FUNCTION
-async function ffmpegExecFn(start, finish, window, ffmpegPath = "/opt/homebrew/bin/ffmpeg") {
+async function ffmpegExecFn(start, finish, hwaccel=false, verticalCrop=false, window, ffmpegPath = "/opt/homebrew/bin/ffmpeg") {
   let isFfmpegRunning = false;
   if (utils.fileInPath(ffmpegPath)) {
     displaySimpleOverlay("Processing ...", "18px");
@@ -70,17 +70,19 @@ async function ffmpegExecFn(start, finish, window, ffmpegPath = "/opt/homebrew/b
       isFfmpegRunning = true;
       postFfmpegStatus(window, isFfmpegRunning);
       const { status } = await utils.exec(ffmpegPath, [
-        '-hwaccel', 'videotoolbox',
+        hwaccel && '-hwaccel', hwaccel && 'videotoolbox',
         '-i', mpv.getString("path"),
         '-ss', start,
         '-to', finish,
-        '-vf', 'crop=w=ih*(9/16):h=ih:x=(iw-ow)/2:y=0,format=yuv420p',
-        '-c:v', 'h264_videotoolbox',
-        '-q:v', '70',
+        verticalCrop && '-vf', verticalCrop && 'crop=w=ih*(9/16):h=ih:x=(iw-ow)/2:y=0,format=yuv420p',
+        hwaccel && '-c:v', hwaccel && 'h264_videotoolbox',
+        hwaccel && '-q:v', hwaccel && '70',
+        !hwaccel && '-c:v', !hwaccel && 'libx264',
+        !hwaccel && '-crf', !hwaccel && '23',
         '-c:a', 'copy',
         '-movflags', '+faststart',
         `${mpv.getString("path").substring(0, mpv.getString("path").lastIndexOf("/"))}/${mpv.getString("filename").slice(0, mpv.getString("filename").lastIndexOf("."))}_clip.mov`,
-      ]);
+      ].filter(Boolean));
 
       if (status === 0) {
         isFfmpegRunning = false;
@@ -95,7 +97,7 @@ async function ffmpegExecFn(start, finish, window, ffmpegPath = "/opt/homebrew/b
       displaySimpleOverlay(`An error occured: ${error}`, "18px", true);
     }
   } else {
-    displaySimpleOverlay("ffmpeg not found", true);
+    displaySimpleOverlay("ffmpeg not found", "18px", true);
   }
 }
 
