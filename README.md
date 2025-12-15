@@ -1,6 +1,6 @@
 
 # Recorder
-Clip your favortie moments from your videos.
+Clip your favourite moments from your videos.
 
 
 ## Features
