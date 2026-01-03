@@ -29,8 +29,8 @@ export function postEndTimeMessage(window) {
 }
 
 export function processVideoClip(window) {
-  window.onMessage("processVideoClip", ({ startPos, endPos, hwaccel, verticalCrop }) => {
-    ffmpegExecFn(startPos, endPos, hwaccel, verticalCrop, window);
+  window.onMessage("processVideoClip", ({ startPos, endPos, hwaccel, verticalCrop, format }) => {
+    ffmpegExecFn(startPos, endPos, hwaccel, verticalCrop, format, window);
   });
 }
 
@@ -57,21 +57,33 @@ export function isFfmpegInstalled(window) {
 
 function postFfmpegStatus(window, status = false) {
   window.postMessage("ffmpeg-status-out", {
-      status: status,
-    });
+    status: status,
+  });
 }
 
 // LOCAL PLUGIN FUNCTION
-async function ffmpegExecFn(start, finish, hwaccel=false, verticalCrop=false, window, ffmpegPath = "/opt/homebrew/bin/ffmpeg") {
+async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false, format = "original", window, ffmpegPath = "/opt/homebrew/bin/ffmpeg") {
   let isFfmpegRunning = false;
   if (utils.fileInPath(ffmpegPath)) {
     displaySimpleOverlay("Processing ...", "18px");
     try {
       isFfmpegRunning = true;
       postFfmpegStatus(window, isFfmpegRunning);
+
+      // Determine extension
+      const originalPath = mpv.getString("path");
+      const filename = mpv.getString("filename");
+      const directory = originalPath.substring(0, originalPath.lastIndexOf("/"));
+      const nameNoExt = filename.slice(0, filename.lastIndexOf("."));
+
+      let extension = format;
+      if (format === "original") {
+        extension = filename.split('.').pop();
+      }
+
       const { status } = await utils.exec(ffmpegPath, [
         hwaccel && '-hwaccel', hwaccel && 'videotoolbox',
-        '-i', mpv.getString("path"),
+        '-i', originalPath,
         '-ss', start,
         '-to', finish,
         verticalCrop && '-vf', verticalCrop && 'crop=w=ih*(9/16):h=ih:x=(iw-ow)/2:y=0,format=yuv420p',
@@ -81,7 +93,7 @@ async function ffmpegExecFn(start, finish, hwaccel=false, verticalCrop=false, wi
         !hwaccel && '-crf', !hwaccel && '23',
         '-c:a', 'copy',
         '-movflags', '+faststart',
-        `${mpv.getString("path").substring(0, mpv.getString("path").lastIndexOf("/"))}/${mpv.getString("filename").slice(0, mpv.getString("filename").lastIndexOf("."))}_clip.mov`,
+        `${directory}/${name_no_ext}_clip.${extension}`,
       ].filter(Boolean));
 
       if (status === 0) {

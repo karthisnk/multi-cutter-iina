@@ -14,6 +14,8 @@ import Switch from "@mui/joy/Switch";
 import Divider from "@mui/joy/Divider";
 import IconButton from "@mui/joy/IconButton";
 import Tooltip from "@mui/joy/Tooltip";
+import Select from "@mui/joy/Select";
+import Option from "@mui/joy/Option";
 
 // icons
 import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
@@ -30,6 +32,7 @@ export default App = () => {
   const [ffmpegStatus, setFfmpegStatus] = useState(false);
   const [hwaccel, setHwaccel] = useState(true);
   const [verticalCrop, setVerticalCrop] = useState(false);
+  const [format, setFormat] = useState("original");
 
   function formatTime(positionInSec) {
     const hours = Math.floor(positionInSec / 3600);
@@ -59,6 +62,7 @@ export default App = () => {
       endPos: endPos,
       hwaccel: hwaccel,
       verticalCrop: verticalCrop,
+      format: format,
     });
   }
 
@@ -174,21 +178,6 @@ export default App = () => {
         level="body-sm"
         endDecorator={
           <Switch
-            checked={hwaccel}
-            variant="soft"
-            color={hwaccel ? "success" : "neutral"}
-            onChange={(event) => setHwaccel(event.target.checked)}
-            sx={{ ml: 1 }}
-          />
-        }
-      >
-        HW Acceleration
-      </Typography>
-      <Typography
-        component="label"
-        level="body-sm"
-        endDecorator={
-          <Switch
             checked={verticalCrop}
             variant="soft"
             color={verticalCrop ? "success" : "neutral"}
@@ -199,6 +188,19 @@ export default App = () => {
       >
         Vertical Crop
       </Typography>
+      <FormControl size="sm">
+        <FormLabel sx={{ mb: 0.5 }}>Format</FormLabel>
+        <Select
+          value={format}
+          onChange={(event, newValue) => setFormat(newValue)}
+          size="sm"
+          sx={{ minWidth: 100 }}
+        >
+          <Option value="original">Original</Option>
+          <Option value="mov">MOV</Option>
+          <Option value="mp4">MP4</Option>
+        </Select>
+      </FormControl>
     </Stack>
   );
 
