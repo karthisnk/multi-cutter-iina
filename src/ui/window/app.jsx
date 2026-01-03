@@ -167,10 +167,9 @@ const App = () => {
 
   const clipControlComponent = (
     <Stack
-      direction="row"
-      divider={<Divider orientation="vertical" />}
+      direction="column"
       spacing={2}
-      sx={{ justifyContent: "center", marginTop: 3, marginBottom: 2 }}
+      sx={{ justifyContent: "center", marginTop: 3, marginBottom: 2, alignItems: "center" }}
     >
       <Typography
         component="label"
@@ -202,8 +201,8 @@ const App = () => {
       >
         Vertical Crop
       </Typography>
-      <FormControl size="sm">
-        <FormLabel sx={{ mb: 0.5 }}>Format</FormLabel>
+      <FormControl size="sm" orientation="horizontal" sx={{ alignItems: "center" }}>
+        <FormLabel sx={{ mb: 0, mr: 1 }}>Format</FormLabel>
         <Select
           value={format}
           onChange={(event, newValue) => setFormat(newValue)}

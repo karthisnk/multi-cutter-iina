@@ -81,6 +81,9 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
         extension = filename.split('.').pop();
       }
 
+      // Sanitize start time for filename (replace : with -)
+      const sanitizedStart = start.replace(/:/g, "-");
+
       const { status } = await utils.exec(ffmpegPath, [
         hwaccel && '-hwaccel', hwaccel && 'videotoolbox',
         '-i', originalPath,
@@ -93,7 +96,7 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
         !hwaccel && '-crf', !hwaccel && '23',
         '-c:a', 'copy',
         '-movflags', '+faststart',
-        `${directory}/${nameNoExt}_clip.${extension}`,
+        `${directory}/${nameNoExt}_clip_${sanitizedStart}.${extension}`,
       ].filter(Boolean));
 
       if (status === 0) {
