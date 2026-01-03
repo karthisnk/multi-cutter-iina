@@ -23,10 +23,11 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RemoveDoneIcon from "@mui/icons-material/RemoveDone";
 import StopIcon from "@mui/icons-material/Stop";
 import HourglassTopIcon from "@mui/icons-material/HourglassTop";
+import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
 
 const App = () => {
-  const [currentPos, setCurrentPos] = useState("");
-  const [endPos, setEndPos] = useState("");
+  const [clips, setClips] = useState([{ id: 1, start: "00:00:00", end: "", status: "IDLE" }]);
   const [isFfmpegInstalled, setIsFfmpegInstalled] = useState(false);
   const [ffmpegStatus, setFfmpegStatus] = useState(false);
   const [hwaccel, setHwaccel] = useState(true);
@@ -64,48 +65,81 @@ const App = () => {
 
   async function processVideoClip() {
     iina.postMessage("processVideoClip", {
-      startPos: currentPos,
-      endPos: endPos,
+      clips: clips.filter(c => c.end !== ""),
       hwaccel: hwaccel,
       verticalCrop: verticalCrop,
       format: format,
     });
   }
 
-  function handleSetEndTime() {
+  const updateClip = (id, field, value) => {
+    setClips(prev => prev.map(clip => clip.id === id ? { ...clip, [field]: value } : clip));
+  };
+
+  const addClip = () => {
+    // Use max ID + 1
+    const maxId = clips.reduce((max, clip) => Math.max(max, clip.id), 0);
+    setClips([...clips, { id: maxId + 1, start: "00:00:00", end: "", status: "IDLE" }]);
+  };
+
+  const removeClip = (id) => {
+    if (clips.length > 1) {
+      setClips(clips.filter(c => c.id !== id));
+    } else {
+      // Reset if it's the last one
+      setClips([{ id: 1, start: "00:00:00", end: "", status: "IDLE" }]);
+    }
+  };
+
+  function handleSetEndTime(id) {
     getEndTime().then((time) => {
       const formattedEndTime = formatTime(time);
-      setEndPos(formattedEndTime);
+      updateClip(id, 'end', formattedEndTime);
     });
   }
 
-  function handleSetStartTime() {
+  function handleSetStartTime(id) {
     getStartTime().then((time) => {
       const formattedStartTime = formatTime(time);
-      setCurrentPos(formattedStartTime);
+      updateClip(id, 'start', formattedStartTime);
     });
   }
 
   function handleCloseBtn() {
     iina.postMessage("closeWindow");
-    setEndPos("");
+    setClips([{ id: 1, start: "00:00:00", end: "", status: "IDLE" }]);
   }
 
   useEffect(() => {
     const handleTimeUpdate = ({ time }) => {
-      // Only auto-update if we haven't manually set a start time (check logic if needed, 
-      // but simpler is to let auto-update only run ONCE on load, which is handled by index.js postCurrentTimeOnce)
-      // Actually, looking at index.js, postCurrentTimeOnce sends "currentTime" once.
-      // So this effect runs once.
       const formattedTime = formatTime(time);
-      setCurrentPos(formattedTime);
+      // On load, update the first clip's start time if it is 00:00:00 (default)
+      setClips(prev => {
+        if (prev.length === 1 && prev[0].start === "00:00:00") {
+          return [{ ...prev[0], start: formattedTime }];
+        }
+        return prev;
+      });
     };
     const handleDepencencyCheck = ({ isInstalled }) => {
       setIsFfmpegInstalled(isInstalled);
     };
 
+    const handleClipStatusUpdate = ({ id, status }) => {
+      updateClip(id, 'status', status);
+    };
+
+    const handleBatchComplete = () => {
+      // Optional: show a global completion toast or reset
+      // For now, let the icons show completion
+      setFfmpegStatus(false);
+    };
+
     iina.onMessage("currentTime", handleTimeUpdate);
     iina.onMessage("is-ffmpeg-installed", handleDepencencyCheck);
+    iina.onMessage("clip-status-update", handleClipStatusUpdate);
+    iina.onMessage("batch-complete", handleBatchComplete);
+
   }, []);
 
   useEffect(() => {
@@ -141,56 +175,6 @@ const App = () => {
         )}
       </CardContent>
     </Card>
-  );
-
-  const startRecordingInputComponent = (
-    <Tooltip title="Start" variant="soft" placement="bottom-start">
-      <Input
-        type="text"
-        variant="soft"
-        value={isFfmpegInstalled ? currentPos : "00:00:00"}
-        readOnly
-        disabled={!isFfmpegInstalled}
-        endDecorator={
-          <IconButton
-            onClick={handleSetStartTime}
-            disabled={!isFfmpegInstalled}
-            variant="soft"
-            color="success"
-          >
-            <PlayCircleIcon />
-          </IconButton>
-        }
-        sx={{
-          maxWidth: "100%",
-        }}
-      />
-    </Tooltip>
-  );
-
-  const endRecordingInputComponent = (
-    <Tooltip title="End" variant="soft" placement="bottom-start">
-      <Input
-        type="text"
-        variant="soft"
-        value={isFfmpegInstalled ? endPos : "00:00:00"}
-        endDecorator={
-          <IconButton
-            onClick={handleSetEndTime}
-            disabled={!isFfmpegInstalled}
-            variant="soft"
-            color="danger"
-          >
-            <StopIcon />
-          </IconButton>
-        }
-        sx={{
-          maxWidth: "100%",
-        }}
-        readOnly
-        disabled={!isFfmpegInstalled}
-      />
-    </Tooltip>
   );
 
   const clipControlComponent = (
@@ -258,10 +242,10 @@ const App = () => {
       <Button
         variant="solid"
         onClick={processVideoClip}
-        disabled={endPos === "" || !isFfmpegInstalled || ffmpegStatus}
+        disabled={clips.every(c => c.end === "") || !isFfmpegInstalled || ffmpegStatus}
         loading={ffmpegStatus}
       >
-        Clip
+        Clip All
       </Button>
       <Button
         variant="solid"
@@ -290,14 +274,75 @@ const App = () => {
     <CssVarsProvider defaultMode="system">
       <CssBaseline />
       <Box sx={{ padding: 2 }}>
-        <Stack
-          direction="row"
-          divider={<Divider orientation="vertical" />}
-          spacing={2}
-          sx={{ justifyContent: "center", marginTop: 1, marginBottom: 1 }}
-        >
-          {startRecordingInputComponent}
-          {endRecordingInputComponent}
+        <Stack spacing={2}>
+          {clips.map((clip) => (
+            <Stack
+              key={clip.id}
+              direction="row"
+              divider={<Divider orientation="vertical" />}
+              spacing={2}
+              sx={{ justifyContent: "center", alignItems: "center" }}
+            >
+              <Tooltip title="Start" variant="soft" placement="bottom-start">
+                <Input
+                  type="text"
+                  variant="soft"
+                  value={isFfmpegInstalled ? clip.start : "00:00:00"}
+                  readOnly
+                  disabled={!isFfmpegInstalled}
+                  endDecorator={
+                    <IconButton
+                      onClick={() => handleSetStartTime(clip.id)}
+                      disabled={!isFfmpegInstalled}
+                      variant="soft"
+                      color="success"
+                    >
+                      <PlayCircleIcon />
+                    </IconButton>
+                  }
+                  sx={{ maxWidth: 140 }}
+                />
+              </Tooltip>
+              <Tooltip title="End" variant="soft" placement="bottom-start">
+                <Input
+                  type="text"
+                  variant="soft"
+                  value={isFfmpegInstalled ? clip.end : "00:00:00"}
+                  endDecorator={
+                    <IconButton
+                      onClick={() => handleSetEndTime(clip.id)}
+                      disabled={!isFfmpegInstalled}
+                      variant="soft"
+                      color="danger"
+                    >
+                      <StopIcon />
+                    </IconButton>
+                  }
+                  sx={{ maxWidth: 140 }}
+                  readOnly
+                  disabled={!isFfmpegInstalled}
+                />
+              </Tooltip>
+              {/* Status Icon */}
+              {clip.status === 'PROCESSING' && <HourglassTopIcon sx={{ color: 'orange' }} />}
+              {clip.status === 'COMPLETED' && <CheckCircleIcon sx={{ color: 'green' }} />}
+              {clip.status === 'ERROR' && <RemoveDoneIcon sx={{ color: 'red' }} />}
+              {/* Remove Button (only if > 1) */}
+              {clips.length > 1 && (
+                <IconButton onClick={() => removeClip(clip.id)} color="danger" variant="plain">
+                  <RemoveCircleIcon />
+                </IconButton>
+              )}
+            </Stack>
+          ))}
+          <Button
+            variant="outlined"
+            startDecorator={<AddCircleIcon />}
+            onClick={addClip}
+            sx={{ alignSelf: "center" }}
+          >
+            Add Another Timestamp
+          </Button>
         </Stack>
         {clipControlComponent}
         {actionButtonsComponent}

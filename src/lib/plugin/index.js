@@ -39,8 +39,19 @@ export function postStartTimeMessage(window) {
 }
 
 export function processVideoClip(window) {
-  window.onMessage("processVideoClip", ({ startPos, endPos, hwaccel, verticalCrop, format }) => {
-    ffmpegExecFn(startPos, endPos, hwaccel, verticalCrop, format, window);
+  window.onMessage("processVideoClip", async ({ clips, hwaccel, verticalCrop, format }) => {
+    // Sequential processing
+    for (const clip of clips) {
+      if (clip.status !== "COMPLETED") {
+        // 1. Notify UI: WAITING -> PROCESSING
+        window.postMessage("clip-status-update", { id: clip.id, status: "PROCESSING" });
+
+        // 2. Execute
+        await ffmpegExecFn(clip.start, clip.end, hwaccel, verticalCrop, format, window, clip.id);
+      }
+    }
+    // 3. Notify Global Done
+    window.postMessage("batch-complete", {});
   });
 }
 
@@ -72,10 +83,10 @@ function postFfmpegStatus(window, status = false) {
 }
 
 // LOCAL PLUGIN FUNCTION
-async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false, format = "original", window, ffmpegPath = "/opt/homebrew/bin/ffmpeg") {
+async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false, format = "original", window, id, ffmpegPath = "/opt/homebrew/bin/ffmpeg") {
   let isFfmpegRunning = false;
   if (utils.fileInPath(ffmpegPath)) {
-    displaySimpleOverlay("Processing ...", "18px");
+    displaySimpleOverlay(`Processing Clip ${id}...`, "18px");
     try {
       isFfmpegRunning = true;
       postFfmpegStatus(window, isFfmpegRunning);
@@ -112,16 +123,18 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
       if (status === 0) {
         isFfmpegRunning = false;
         postFfmpegStatus(window, isFfmpegRunning);
-        displaySimpleOverlay("Clip saved in " + mpv.getString("path").substring(0, mpv.getString("path").lastIndexOf("/")), "18px");
-        window.hide();
-        core.resume();
+        window.postMessage("clip-status-update", { id: id, status: "COMPLETED" });
+        displaySimpleOverlay("Clip saved", "18px");
       } else {
+        window.postMessage("clip-status-update", { id: id, status: "ERROR" });
         displaySimpleOverlay(`FFmpeg error code ${status}`, "18px", true);
       }
     } catch (error) {
+      window.postMessage("clip-status-update", { id: id, status: "ERROR" });
       displaySimpleOverlay(`An error occured: ${error}`, "18px", true);
     }
   } else {
+    window.postMessage("clip-status-update", { id: id, status: "ERROR" });
     displaySimpleOverlay("ffmpeg not found", "18px", true);
   }
 }
