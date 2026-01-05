@@ -39,3 +39,13 @@ Before you setup the plugin, make sure the version of IINA you're using is `>=1.
 - Copy the plugin's repo URL and click on "Install"
 
 ℹ️ *Other installations for IINA will be updated soon!*
+
+
+## Known Issues
+### start the plugin
+- to start this plugin, you need to click on plugin --> start clipping (from menu bar)
+
+### preview clip
+- preview clip only work when you click on start button on the timestamp
+- if you start clip by pressing plugin --> star clipping, it won't show preview icon
+- workaround: click on start button on the timestamp, even though you click on plugin --> start clipping

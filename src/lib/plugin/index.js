@@ -151,6 +151,7 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
       // Calculate Video Filter String
       let videoFilter = null;
       let cropFilter = 'crop=w=ih*(9/16):h=ih:x=(iw-ow)/2:y=0'; // Default Legacy
+      let filenameSuffix = "";
 
       if (verticalCrop) {
         switch (cropMode) {
@@ -164,6 +165,9 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
         // Force yuv420p for compatibility
         cropFilter += ",format=yuv420p";
         videoFilter = cropFilter;
+
+        // Add suffix for file name
+        filenameSuffix = `_vertical_${cropMode}`;
       } else {
         // Even without crop, ensure compatible pixel format
         videoFilter = "format=yuv420p";
@@ -184,7 +188,7 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
           !enableHwAccel && '-crf', !enableHwAccel && '23',
           '-c:a', 'copy',
           '-movflags', '+faststart',
-          `${directory}/${nameNoExt}_clip_${sanitizedStart}.${extension}`,
+          `${directory}/${nameNoExt}_clip${filenameSuffix}_${sanitizedStart}.${extension}`,
         ].filter(Boolean);
         return await utils.exec(finalFfmpegPath, args);
       };
