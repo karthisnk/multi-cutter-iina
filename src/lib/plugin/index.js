@@ -76,7 +76,7 @@ export function postStartTimeMessage(window) {
 }
 
 export function processVideoClip(window) {
-  window.onMessage("processVideoClip", async ({ clips, hwaccel, verticalCrop, format }) => {
+  window.onMessage("processVideoClip", async ({ clips, hwaccel, verticalCrop, cropMode, format }) => {
     // Sequential processing
     for (const clip of clips) {
       if (clip.status !== "COMPLETED") {
@@ -84,7 +84,7 @@ export function processVideoClip(window) {
         window.postMessage("clip-status-update", { id: clip.id, status: "PROCESSING" });
 
         // 2. Execute
-        await ffmpegExecFn(clip.start, clip.end, hwaccel, verticalCrop, format, window, clip.id);
+        await ffmpegExecFn(clip.start, clip.end, hwaccel, verticalCrop, cropMode, format, window, clip.id);
       }
     }
     // 3. Notify Global Done
@@ -120,7 +120,7 @@ function postFfmpegStatus(window, status = false) {
 }
 
 // LOCAL PLUGIN FUNCTION
-async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false, format = "original", window, id, ffmpegPath = "/opt/homebrew/bin/ffmpeg") {
+async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false, cropMode = "default", format = "original", window, id, ffmpegPath = "/opt/homebrew/bin/ffmpeg") {
   let isFfmpegRunning = false;
   if (utils.fileInPath(ffmpegPath)) {
     displaySimpleOverlay(`Processing Clip ${id}...`, "18px");
@@ -132,22 +132,37 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
       const originalPath = mpv.getString("path");
       const filename = mpv.getString("filename");
       const directory = originalPath.substring(0, originalPath.lastIndexOf("/"));
-      const nameNoExt = filename.slice(0, filename.lastIndexOf("."));
+      const nameNoExt = filename.substring(0, filename.lastIndexOf("."));
 
-      let extension = format;
-      if (format === "original") {
-        extension = filename.split('.').pop();
-      }
+      let extension = "mov";
+      if (format === "mp4") extension = "mp4";
+      if (format === "original") extension = filename.split('.').pop();
 
-      // Sanitize start time for filename (replace : with -)
+
+      // Sanitize timestamp for filename
       const sanitizedStart = start.replace(/:/g, "-");
 
-      const { status } = await utils.exec(ffmpegPath, [
-        hwaccel && '-hwaccel', hwaccel && 'videotoolbox',
-        '-i', originalPath,
+      // Determine Crop Filter
+      let cropFilter = 'crop=w=ih*(9/16):h=ih:x=(iw-ow)/2:y=0'; // Default Legacy
+      if (verticalCrop) {
+        switch (cropMode) {
+          case 'left-3': cropFilter = 'crop=iw/3:ih:0:0'; break;
+          case 'center-3': cropFilter = 'crop=iw/3:ih:iw/3:0'; break;
+          case 'right-3': cropFilter = 'crop=iw/3:ih:2*iw/3:0'; break;
+          case 'left-2': cropFilter = 'crop=iw/2:ih:0:0'; break;
+          case 'right-2': cropFilter = 'crop=iw/2:ih:iw/2:0'; break;
+          default: break; // Keep default
+        }
+        // Ensure we append yuv420p format for compatibility if needed, 
+        // or handle it separately. The original code chained it.
+        cropFilter += ",format=yuv420p";
+      }
+
+      const status = core.run(ffmpegPath, [
         '-ss', start,
         '-to', finish,
-        verticalCrop && '-vf', verticalCrop && 'crop=w=ih*(9/16):h=ih:x=(iw-ow)/2:y=0,format=yuv420p',
+        '-i', originalPath,
+        verticalCrop && '-vf', verticalCrop && cropFilter,
         hwaccel && '-c:v', hwaccel && 'h264_videotoolbox',
         hwaccel && '-q:v', hwaccel && '70',
         !hwaccel && '-c:v', !hwaccel && 'libx264',

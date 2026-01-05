@@ -33,6 +33,7 @@ const App = () => {
   const [ffmpegStatus, setFfmpegStatus] = useState(false);
   const [hwaccel, setHwaccel] = useState(true);
   const [verticalCrop, setVerticalCrop] = useState(false);
+  const [cropMode, setCropMode] = useState("center-3");
   const [format, setFormat] = useState("original");
 
   function formatTime(positionInSec) {
@@ -69,6 +70,7 @@ const App = () => {
       clips: clips.filter(c => c.end !== ""),
       hwaccel: hwaccel,
       verticalCrop: verticalCrop,
+      cropMode: cropMode,
       format: format,
     });
   }
@@ -223,6 +225,55 @@ const App = () => {
       >
         Vertical Crop
       </Typography>
+
+      {/* Vertical Crop Options */}
+      {verticalCrop && (
+        <Stack spacing={1} sx={{ alignItems: 'center', width: '100%' }}>
+          <Typography level="body-xs">Split 3</Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant={cropMode === 'left-3' ? 'solid' : 'outlined'}
+              onClick={() => setCropMode('left-3')}
+              size="sm"
+            >
+              Left
+            </Button>
+            <Button
+              variant={cropMode === 'center-3' ? 'solid' : 'outlined'}
+              onClick={() => setCropMode('center-3')}
+              size="sm"
+            >
+              Center
+            </Button>
+            <Button
+              variant={cropMode === 'right-3' ? 'solid' : 'outlined'}
+              onClick={() => setCropMode('right-3')}
+              size="sm"
+            >
+              Right
+            </Button>
+          </Box>
+
+          <Typography level="body-xs">Split 2</Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant={cropMode === 'left-2' ? 'solid' : 'outlined'}
+              onClick={() => setCropMode('left-2')}
+              size="sm"
+            >
+              Left
+            </Button>
+            <Button
+              variant={cropMode === 'right-2' ? 'solid' : 'outlined'}
+              onClick={() => setCropMode('right-2')}
+              size="sm"
+            >
+              Right
+            </Button>
+          </Box>
+        </Stack>
+      )}
+
       <FormControl size="sm" orientation="horizontal" sx={{ alignItems: "center" }}>
         <FormLabel sx={{ mb: 0, mr: 1 }}>Format</FormLabel>
         <Select
