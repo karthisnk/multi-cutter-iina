@@ -170,7 +170,8 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
       }
 
       // HELPER: Run FFmpeg with specific HW Accel setting
-      const runFfmpeg = (enableHwAccel) => {
+      // Returns { status, stdout, stderr } via utils.exec (ASYNC)
+      const runFfmpeg = async (enableHwAccel) => {
         const args = [
           '-y', // Force overwrite
           '-ss', start,
@@ -185,16 +186,18 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
           '-movflags', '+faststart',
           `${directory}/${nameNoExt}_clip_${sanitizedStart}.${extension}`,
         ].filter(Boolean);
-        return core.run(finalFfmpegPath, args);
+        return await utils.exec(finalFfmpegPath, args);
       };
 
       // 1. Initial Attempt
-      let status = runFfmpeg(hwaccel);
+      let result = await runFfmpeg(hwaccel);
+      let status = result.status;
 
       // 2. Retry Logic: If HW Accel failed, try Software
       if (status !== 0 && hwaccel) {
         displaySimpleOverlay(`HW Accel failed (Err ${status}). Retrying on CPU...`, "16px");
-        status = runFfmpeg(false);
+        result = await runFfmpeg(false);
+        status = result.status;
       }
 
       if (status === 0) {
@@ -206,6 +209,7 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
         isFfmpegRunning = false;
         postFfmpegStatus(window, isFfmpegRunning);
         window.postMessage("clip-status-update", { id: id, status: "ERROR" });
+        // Try to show error from stderr if available/safe
         displaySimpleOverlay(`Error: FFmpeg exited with code ${status}.`, "18px", true, 8000);
       }
     } catch (error) {
