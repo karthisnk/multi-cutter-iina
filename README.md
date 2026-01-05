@@ -4,8 +4,22 @@ Clip your favourite moments from your videos.
 
 
 ## Features
-- Clip comedic or thrilling moments from your videos, all from your IINA sidebar.
-- Share your clip to devices with the right encoding.
+
+### 🎬 Batch Clipping
+Found multiple funny moments in one video? No need to clip them one by one! You can now add multiple timestamps and export them all at once.
+
+### 📱 Vertical Crop for Social Media
+Want to share a landscape video on TikTok, Instagram Reels, or YouTube Shorts?
+- **Vertical Crop**: Automatically crops your video to a 9:16 vertical ratio.
+- **Smart Positioning**: Choose to focus on the **Left**, **Center**, or **Right** side of the video so you never miss the action.
+
+### 💾 Format Selection
+Choose the best format for your needs:
+- **Original**: Keep the original video quality.
+- **MP4 / MOV**: Convert to common formats compatiable with all devices.
+
+### 👀 Instant Preview
+Not sure if you got the timing right? Use the **Preview** button to watch your selected clip before saving it.
 
 
 ## Prerequisites

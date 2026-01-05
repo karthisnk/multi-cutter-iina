@@ -6,8 +6,6 @@ const {
   event,
 } = iina;
 
-// ...
-
 export function handlePreviewMessage(window) {
   let previewListener = null;
 
@@ -147,12 +145,13 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
       if (format === "mp4") extension = "mp4";
       if (format === "original") extension = filename.split('.').pop();
 
-
       // Sanitize timestamp for filename
       const sanitizedStart = start.replace(/:/g, "-");
 
-      // Determine Crop Filter
+      // Calculate Video Filter String
+      let videoFilter = null;
       let cropFilter = 'crop=w=ih*(9/16):h=ih:x=(iw-ow)/2:y=0'; // Default Legacy
+
       if (verticalCrop) {
         switch (cropMode) {
           case 'left-3': cropFilter = 'crop=iw/3:ih:0:0'; break;
@@ -162,24 +161,41 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
           case 'right-2': cropFilter = 'crop=iw/2:ih:iw/2:0'; break;
           default: break; // Keep default
         }
-        // Ensure we append yuv420p format for compatibility if needed, 
-        // or handle it separately. The original code chained it.
+        // Force yuv420p for compatibility
         cropFilter += ",format=yuv420p";
+        videoFilter = cropFilter;
+      } else {
+        // Even without crop, ensure compatible pixel format
+        videoFilter = "format=yuv420p";
       }
 
-      const status = core.run(finalFfmpegPath, [
-        '-ss', start,
-        '-to', finish,
-        '-i', originalPath,
-        verticalCrop && '-vf', verticalCrop && cropFilter,
-        hwaccel && '-c:v', hwaccel && 'h264_videotoolbox',
-        hwaccel && '-q:v', hwaccel && '70',
-        !hwaccel && '-c:v', !hwaccel && 'libx264',
-        !hwaccel && '-crf', !hwaccel && '23',
-        '-c:a', 'copy',
-        '-movflags', '+faststart',
-        `${directory}/${nameNoExt}_clip_${sanitizedStart}.${extension}`,
-      ].filter(Boolean));
+      // HELPER: Run FFmpeg with specific HW Accel setting
+      const runFfmpeg = (enableHwAccel) => {
+        const args = [
+          '-y', // Force overwrite
+          '-ss', start,
+          '-to', finish,
+          '-i', originalPath,
+          '-vf', videoFilter, // Always apply filter (crop or format)
+          enableHwAccel && '-c:v', enableHwAccel && 'h264_videotoolbox',
+          enableHwAccel && '-q:v', enableHwAccel && '70',
+          !enableHwAccel && '-c:v', !enableHwAccel && 'libx264',
+          !enableHwAccel && '-crf', !enableHwAccel && '23',
+          '-c:a', 'copy',
+          '-movflags', '+faststart',
+          `${directory}/${nameNoExt}_clip_${sanitizedStart}.${extension}`,
+        ].filter(Boolean);
+        return core.run(finalFfmpegPath, args);
+      };
+
+      // 1. Initial Attempt
+      let status = runFfmpeg(hwaccel);
+
+      // 2. Retry Logic: If HW Accel failed, try Software
+      if (status !== 0 && hwaccel) {
+        displaySimpleOverlay(`HW Accel failed (Err ${status}). Retrying on CPU...`, "16px");
+        status = runFfmpeg(false);
+      }
 
       if (status === 0) {
         isFfmpegRunning = false;
@@ -187,20 +203,22 @@ async function ffmpegExecFn(start, finish, hwaccel = false, verticalCrop = false
         window.postMessage("clip-status-update", { id: id, status: "COMPLETED" });
         displaySimpleOverlay("Clip saved", "18px");
       } else {
+        isFfmpegRunning = false;
+        postFfmpegStatus(window, isFfmpegRunning);
         window.postMessage("clip-status-update", { id: id, status: "ERROR" });
-        displaySimpleOverlay(`FFmpeg error code ${status}`, "18px", true);
+        displaySimpleOverlay(`Error: FFmpeg exited with code ${status}.`, "18px", true, 8000);
       }
     } catch (error) {
+      isFfmpegRunning = false;
+      postFfmpegStatus(window, isFfmpegRunning);
       window.postMessage("clip-status-update", { id: id, status: "ERROR" });
-      displaySimpleOverlay(`An error occured: ${error}`, "18px", true);
+      displaySimpleOverlay(`Exception: ${error}`, "18px", true, 8000);
     }
   } else {
     window.postMessage("clip-status-update", { id: id, status: "ERROR" });
-    displaySimpleOverlay("ffmpeg not found", "18px", true);
+    displaySimpleOverlay("Error: ffmpeg binary not found.", "18px", true, 8000);
   }
 }
-
-
 
 export function handleUiReady(window) {
   window.onMessage("ui-ready", () => {
@@ -208,9 +226,3 @@ export function handleUiReady(window) {
     postCurrentTimeOnce(window);
   });
 }
-
-// EVENTS - FOR LATER
-// event.on("mpv.time-pos.changed", () => {
-//   let time = mpv.getNumber("time-pos");
-//   postCurrentTimeMessage(time);
-// });
