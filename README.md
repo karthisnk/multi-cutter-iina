@@ -81,3 +81,6 @@ A huge thank you to the following contributors who inspired this plugin:
 
 - **[@5thDimensionalVader](https://github.com/5thDimensionalVader)** for the [recorder-iina](https://github.com/5thDimensionalVader/recorder-iina) plugin, which served as the foundation for this project.
 - **[@NapoleonWils0n](https://github.com/NapoleonWils0n)** for the incredible [ffmpeg-scripts](https://github.com/NapoleonWils0n/ffmpeg-scripts), without which the advanced clipping features wouldn't be possible.
+
+> 🎓 **Want to master FFmpeg?**  
+> Highly recommended: **@NapoleonWils0n** has an excellent [YouTube Playlist](https://www.youtube.com/watch?v=UHshlQvdwcQ&list=PL7hhhG5qUoXlVUkHAhgw_px_x0zB29okR) that is a goldmine for learning! 🚀
